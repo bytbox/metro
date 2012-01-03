@@ -70,56 +70,106 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
-float cubeData[] = {
-	 0.5,  0.5,  0.5, 1.0,
-	 0.5,  0.5, -0.5, 1.0,
-	-0.5,  0.5,  0.5, 1.0,
-	-0.5,  0.5, -0.5, 1.0,
-	 0.5, -0.5,  0.5, 1.0,
-	 0.5, -0.5, -0.5, 1.0,
-	-0.5, -0.5,  0.5, 1.0,
-	-0.5, -0.5, -0.5, 1.0,
+float *pipeX;
+float *pipeY;
+float *pipeZ;
 
-	 0.5,  0.5,  0.5, 1.0,
-	-0.5,  0.5,  0.5, 1.0,
-	 0.5, -0.5,  0.5, 1.0,
-	-0.5, -0.5,  0.5, 1.0,
-	 0.5,  0.5, -0.5, 1.0,
-	-0.5,  0.5, -0.5, 1.0,
-	 0.5, -0.5, -0.5, 1.0,
-	-0.5, -0.5, -0.5, 1.0,
-
-	 0.5,  0.5,  0.5, 1.0,
-	 0.5, -0.5,  0.5, 1.0,
-	-0.5,  0.5,  0.5, 1.0,
-	-0.5, -0.5,  0.5, 1.0,
-	 0.5,  0.5, -0.5, 1.0,
-	 0.5, -0.5, -0.5, 1.0,
-	-0.5,  0.5, -0.5, 1.0,
-	-0.5, -0.5, -0.5, 1.0,
+struct vertex {
+	float x, y, z, a;
 };
-float *pipeData;
+
 float *pipeVertexData;
+float *pipeColorData;
+int vdSize = 80;
+int used = 0;
 int pipelen;
 
 void init_pipe() {
+	float *pipeA;
+	float *pipeB;
+
 	FILE *f = fopen("level1.map", "r");
 	fscanf(f, "%d\n", &pipelen);
+
+	pipeA = (float *)malloc(sizeof(float) * pipelen);
+	pipeB = (float *)malloc(sizeof(float) * pipelen);
+	pipeX = (float *)malloc(sizeof(float) * pipelen);
+	pipeY = (float *)malloc(sizeof(float) * pipelen);
+	pipeZ = (float *)malloc(sizeof(float) * pipelen);
+
+	int lpos = 0, i;
+	pipeA[0] = pipeB[0] = 0;
 	while (!feof(f)) {
 		int pos;
 		float a, b;
 		fscanf(f, "%d %f %f\n", &pos, &a, &b);
+		for (i = lpos; i < pos; i++) {
+			pipeA[i] = pipeA[lpos];
+			pipeB[i] = pipeB[lpos];
+		}
+		pipeA[pos] = a;
+		pipeB[pos] = b;
+	}
+	for (i = lpos; i < pipelen; i++) {
+		pipeA[i] = pipeA[lpos];
+		pipeB[i] = pipeB[lpos];
 	}
 	fclose(f);
 
-	pipeData = malloc(VSIZE * pipelen);
-
-	int i;
 	for (i = 0; i < pipelen; i++) {
-		pipeData[i * 4 + 0] = cos(((float)i)/15.0);
-		pipeData[i * 4 + 1] = sin(((float)i)/15.0);
-		pipeData[i * 4 + 2] = i;
-		pipeData[i * 4 + 3] = 1.0f;
+		double p = i/50.0;
+		pipeX[i] = 0;
+		pipeY[i] = cos(p/5);
+		pipeZ[i] = p;
+	}
+
+	free(pipeA);
+	free(pipeB);
+
+	pipeVertexData = calloc(VSIZE, pipelen * vdSize);
+	pipeColorData = calloc(VSIZE, pipelen * vdSize);
+
+	int a = 0;
+	int b = 0;
+	int x = 0;
+	for (i = 0; i < pipelen-1; i+=1) {
+		int i2 = i + 1;
+		int ti;
+		double t;
+		double dt = 2*M_PI/20;
+		for (ti = 0; ti < 20; ti++) {
+			t = dt * ti;
+			double t2 = t + dt;
+			pipeVertexData[a++] = pipeX[i] + sin(t);
+			pipeVertexData[a++] = pipeY[i] + cos(t);
+			pipeVertexData[a++] = pipeZ[i];
+			pipeVertexData[a++] = 1.0;
+
+			pipeVertexData[a++] = pipeX[i] + sin(t2);
+			pipeVertexData[a++] = pipeY[i] + cos(t2);
+			pipeVertexData[a++] = pipeZ[i];
+			pipeVertexData[a++] = 1.0;
+
+			pipeVertexData[a++] = pipeX[i2] + sin(t2);
+			pipeVertexData[a++] = pipeY[i2] + cos(t2);
+			pipeVertexData[a++] = pipeZ[i2];
+			pipeVertexData[a++] = 1.0;
+
+			pipeVertexData[a++] = pipeX[i2] + sin(t);
+			pipeVertexData[a++] = pipeY[i2] + cos(t);
+			pipeVertexData[a++] = pipeZ[i2];
+			pipeVertexData[a++] = 1.0;
+			used += 4;
+			int __;
+			for (__ = 0; __ < 4; __++) {
+				pipeColorData[b++] = 1;
+				pipeColorData[b++] = x%2;
+				pipeColorData[b++] = x%3;
+				pipeColorData[b++] = 1;
+			}
+			x++;
+		}
+		x=0;
 	}
 }
 
@@ -139,9 +189,22 @@ void init_gl() {
 
 	glEnable(GL_DEPTH_TEST);
 
+	glShadeModel(GL_SMOOTH);
+
+	glEnable(GL_LIGHTING);
+
+	float ambient[] = {0.3, 0.5, 0.5, 1.0};
+	glLightfv(GL_LIGHT0, GL_AMBIENT, ambient);
+	glEnable(GL_LIGHT0);
+
+	glEnable(GL_COLOR_MATERIAL);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+
 	// enable antialiasing
 	glEnable(GL_POINT_SMOOTH);
 	glEnable(GL_LINE_SMOOTH);
+	glEnable(GL_LINE_SMOOTH);
+	//glEnable(GL_POLYGON_SMOOTH);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
@@ -152,12 +215,22 @@ void init_gl() {
 }
 
 void display_gl() {
+	static int pos=0;
+
 	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();	
+	glLoadIdentity();
 	gluLookAt(
-		0, 0, -2, // eye
-		0, 0, 0, // center
-		1, 0, 0 // up
+		pipeX[pos], pipeY[pos], pipeZ[pos], // eye
+		pipeX[pos+1], pipeY[pos+1], pipeZ[pos+1], // center
+		1+pipeX[pos], pipeY[pos], pipeZ[pos] // up
+	);
+
+	glLoadIdentity();
+	// set camera
+	gluLookAt(
+		pipeX[pos], pipeY[pos], pipeZ[pos],
+		pipeX[pos+1], pipeY[pos+1], pipeZ[pos+1],
+		1, 0, 0
 	);
 
 	glClearColor(0.0, 0.0, 0.0, 0.0);
@@ -165,16 +238,23 @@ void display_gl() {
 
 	glPushMatrix();
 
-	glEnableClientState(GL_VERTEX_ARRAY);
 
-	glVertexPointer(4, GL_FLOAT, 0, cubeData);
-	glDrawArrays(GL_LINES, 0, sizeof(cubeData)/VSIZE);
+	//glVertexPointer(4, GL_FLOAT, 0, pipeData);
+	//glDrawArrays(GL_LINE_STRIP, 0, pipelen);
 	
-	glVertexPointer(4, GL_FLOAT, 0, pipeData);
-	glDrawArrays(GL_LINES, 0, pipelen);
-
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_COLOR_ARRAY);
+	glVertexPointer(4, GL_FLOAT, 0, pipeVertexData);
+	glColorPointer(4, GL_FLOAT, 0, pipeColorData);
+	glDrawArrays(GL_QUADS, 0, used);
 	glDisableClientState(GL_VERTEX_ARRAY);
+	glDisableClientState(GL_COLOR_ARRAY);
+
 	glPopMatrix();
+
+	pos++;
+
+	if (pos >= pipelen-10) pos=0;
 }
 
 void main_loop() {
